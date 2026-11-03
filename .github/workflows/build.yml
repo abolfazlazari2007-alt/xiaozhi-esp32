@@ -23,7 +23,7 @@ jobs:
         shell: bash
         run: |
           source "$IDF_PATH/export.sh"
-          python scripts/build.py bread-compact-wifi --name 128x64
+          python scripts/build.py bread-compact-wifi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
