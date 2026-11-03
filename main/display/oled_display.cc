@@ -61,20 +61,18 @@ OledDisplay::OledDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handl
         .hres = static_cast<uint32_t>(width_),
         .vres = static_cast<uint32_t>(height_),
         .monochrome = true,
-        .rotation =
-            {
-                .swap_xy = false,
-                .mirror_x = mirror_x,
-                .mirror_y = mirror_y,
-            },
-        .flags =
-            {
-                .buff_dma = 1,
-                .buff_spiram = 0,
-                .sw_rotate = 0,
-                .full_refresh = 0,
-                .direct_mode = 0,
-            },
+        .rotation = {
+            .swap_xy = false,
+            .mirror_x = mirror_x,
+            .mirror_y = mirror_y,
+        },
+        .flags = {
+            .buff_dma = 1,
+            .buff_spiram = 0,
+            .sw_rotate = 0,
+            .full_refresh = 0,
+            .direct_mode = 0,
+        },
     };
 
     display_ = lvgl_port_add_disp(&display_cfg);
@@ -138,80 +136,64 @@ OledDisplay::~OledDisplay() {
     lvgl_port_deinit();
 }
 
-bool OledDisplay::Lock(int timeout_ms) { return lvgl_port_lock(timeout_ms); }
+bool OledDisplay::Lock(int timeout_ms) {
+    return lvgl_port_lock(timeout_ms);
+}
 
-void OledDisplay::Unlock() { lvgl_port_unlock(); }
+void OledDisplay::Unlock() {
+    lvgl_port_unlock();
+}
 
 void OledDisplay::SetChatMessage(const char* role, const char* content) {
-    DisplayLockGuard lock(this);
-    if (chat_message_label_ == nullptr) {
-        return;
-    }
+    // پیام‌های متنی در این حالت عمداً نمایش داده نمی‌شوند تا فقط صورت دیده شود
 }
 
 void OledDisplay::RemoveChatMessage(const char* role, const char* content) {
-    DisplayLockGuard lock(this);
+    // نادیده گرفته می‌شود
 }
 
 void OledDisplay::SetupUI_128x64() {
     DisplayLockGuard lock(this);
 
     auto lvgl_theme = static_cast<LvglTheme*>(current_theme_);
-    auto text_font = lvgl_theme->text_font()->font();
-    auto icon_font = lvgl_theme->icon_font()->font();
-    auto large_icon_font = lvgl_theme->large_icon_font()->font();
-
+    auto emoji_font = lvgl_theme->emoji_font()->font();
     auto screen = lv_screen_active();
-    lv_obj_set_style_text_font(screen, text_font, 0);
-    lv_obj_set_style_text_color(screen, lv_color_black(), 0);
 
-    /* Container - Full Screen */
+    lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_all(screen, 0, 0);
+
+    // یک کانتینر تمام‌صفحه دقیقاً ۱۲۸ در ۶۴
     container_ = lv_obj_create(screen);
-    lv_obj_set_size(container_, LV_HOR_RES, LV_VER_RES);
+    lv_obj_set_size(container_, width_, height_);
     lv_obj_set_style_pad_all(container_, 0, 0);
     lv_obj_set_style_border_width(container_, 0, 0);
+    lv_obj_set_style_radius(container_, 0, 0);
+    lv_obj_set_style_bg_color(container_, lv_color_black(), 0);
     lv_obj_set_scrollbar_mode(container_, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_center(container_);
 
-    /* Hide Top and Status Bars completely for clean full-screen face */
-    top_bar_ = nullptr;
-    status_bar_ = nullptr;
+    // المان‌های وضعیت برای جلوگیری از کرش پوینترها ساخته ولی پنهان می‌شوند
+    top_bar_ = lv_obj_create(container_);
+    lv_obj_add_flag(top_bar_, LV_OBJ_FLAG_HIDDEN);
 
-    /* Content Area - Full screen centered */
-    content_ = lv_obj_create(container_);
-    lv_obj_set_size(content_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_scrollbar_mode(content_, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_set_style_radius(content_, 0, 0);
-    lv_obj_set_style_pad_all(content_, 0, 0);
-    lv_obj_set_style_border_width(content_, 0, 0);
-    lv_obj_align(content_, LV_ALIGN_CENTER, 0, 0);
+    status_bar_ = lv_obj_create(screen);
+    lv_obj_add_flag(status_bar_, LV_OBJ_FLAG_HIDDEN);
 
-    /* Centered Face Container covering full 128x64 */
-    content_left_ = lv_obj_create(content_);
-    lv_obj_set_size(content_left_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_pad_all(content_left_, 0, 0);
-    lv_obj_set_style_border_width(content_left_, 0, 0);
-    lv_obj_set_style_bg_opa(content_left_, LV_OPA_TRANSP, 0);
-    lv_obj_align(content_left_, LV_ALIGN_CENTER, 0, 0);
+    status_label_ = lv_label_create(status_bar_);
+    notification_label_ = lv_label_create(status_bar_);
 
-    emotion_label_ = lv_label_create(content_left_);
-    lv_obj_set_style_text_font(emotion_label_, large_icon_font, 0);
-    lv_label_set_text(emotion_label_, MATERIAL_SYMBOLS_ROBOT_2);
+    // لیبل ایموجی/چهره دقیقاً در مرکز صفحه
+    emotion_label_ = lv_label_create(container_);
+    lv_obj_set_style_text_font(emotion_label_, emoji_font, 0);
+    lv_obj_set_style_text_color(emotion_label_, lv_color_white(), 0);
+    lv_label_set_text(emotion_label_, NOTO_EMOJI_NEUTRAL);
     lv_obj_center(emotion_label_);
 
+    content_ = nullptr;
+    content_left_ = nullptr;
     content_right_ = nullptr;
     chat_message_label_ = nullptr;
-
-    low_battery_popup_ = lv_obj_create(screen);
-    lv_obj_set_scrollbar_mode(low_battery_popup_, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_set_size(low_battery_popup_, LV_HOR_RES * 0.9, text_font->line_height * 2);
-    lv_obj_align(low_battery_popup_, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_set_style_bg_color(low_battery_popup_, lv_color_black(), 0);
-    lv_obj_set_style_radius(low_battery_popup_, 10, 0);
-    low_battery_label_ = lv_label_create(low_battery_popup_);
-    lv_label_set_text(low_battery_label_, Lang::Strings::BATTERY_NEED_CHARGE);
-    lv_obj_set_style_text_color(low_battery_label_, lv_color_white(), 0);
-    lv_obj_center(low_battery_label_);
-    lv_obj_add_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
 }
 
 void OledDisplay::SetupUI_128x32() {
@@ -227,6 +209,7 @@ void OledDisplay::SetupUI_128x32() {
 
     container_ = lv_obj_create(screen);
     lv_obj_set_size(container_, LV_HOR_RES, LV_VER_RES);
+    lv_obj_set_flex_flow(container_, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_all(container_, 0, 0);
     lv_obj_set_style_border_width(container_, 0, 0);
 
@@ -235,22 +218,75 @@ void OledDisplay::SetupUI_128x32() {
     lv_obj_set_style_pad_all(content_, 0, 0);
     lv_obj_set_style_border_width(content_, 0, 0);
     lv_obj_set_style_radius(content_, 0, 0);
-    lv_obj_align(content_, LV_ALIGN_CENTER, 0, 0);
 
     emotion_label_ = lv_label_create(content_);
     lv_obj_set_style_text_font(emotion_label_, large_icon_font, 0);
     lv_label_set_text(emotion_label_, MATERIAL_SYMBOLS_ROBOT_2);
     lv_obj_center(emotion_label_);
+
+    side_bar_ = lv_obj_create(container_);
+    lv_obj_set_size(side_bar_, width_ - 32, 32);
+    lv_obj_set_flex_flow(side_bar_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(side_bar_, 0, 0);
+    lv_obj_set_style_border_width(side_bar_, 0, 0);
+    lv_obj_set_style_radius(side_bar_, 0, 0);
+    lv_obj_set_style_pad_row(side_bar_, 0, 0);
+
+    status_bar_ = lv_obj_create(side_bar_);
+    lv_obj_set_size(status_bar_, width_ - 32, 16);
+    lv_obj_set_style_radius(status_bar_, 0, 0);
+    lv_obj_set_flex_flow(status_bar_, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_all(status_bar_, 0, 0);
+    lv_obj_set_style_border_width(status_bar_, 0, 0);
+    lv_obj_set_style_pad_column(status_bar_, 0, 0);
+
+    status_label_ = lv_label_create(status_bar_);
+    lv_obj_set_flex_grow(status_label_, 1);
+    lv_obj_set_style_pad_left(status_label_, 2, 0);
+    lv_label_set_text(status_label_, Lang::Strings::INITIALIZING);
+
+    notification_label_ = lv_label_create(status_bar_);
+    lv_obj_set_flex_grow(notification_label_, 1);
+    lv_obj_set_style_pad_left(notification_label_, 2, 0);
+    lv_label_set_text(notification_label_, "");
+    lv_obj_add_flag(notification_label_, LV_OBJ_FLAG_HIDDEN);
+
+    mute_label_ = lv_label_create(status_bar_);
+    lv_label_set_text(mute_label_, "");
+    lv_obj_set_style_text_font(mute_label_, icon_font, 0);
+
+    network_label_ = lv_label_create(status_bar_);
+    lv_label_set_text(network_label_, "");
+    lv_obj_set_style_text_font(network_label_, icon_font, 0);
+
+    battery_label_ = lv_label_create(status_bar_);
+    lv_label_set_text(battery_label_, "");
+    lv_obj_set_style_text_font(battery_label_, icon_font, 0);
+
+    chat_message_label_ = lv_label_create(side_bar_);
+    lv_obj_set_size(chat_message_label_, width_ - 32, LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_left(chat_message_label_, 2, 0);
+    lv_label_set_long_mode(chat_message_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_label_set_text(chat_message_label_, "");
+
+    static lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_delay(&a, 1000);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_obj_set_style_anim(chat_message_label_, &a, LV_PART_MAIN);
+    lv_obj_set_style_anim_duration(chat_message_label_, lv_anim_speed_clamped(60, 300, 60000), LV_PART_MAIN);
 }
 
 bool OledDisplay::SetEmotion(const char* emotion) {
     auto lvgl_theme = static_cast<LvglTheme*>(current_theme_);
-    const char* utf8 = noto_emoji_get_utf8(emotion);
+    const char* utf8 = emotion ? noto_emoji_get_utf8(emotion) : nullptr;
     const lv_font_t* emotion_font = lvgl_theme->emoji_font()->font();
-    if (utf8 == nullptr) {
+
+    if (utf8 == nullptr && emotion != nullptr) {
         utf8 = material_symbols_get_utf8(emotion);
         emotion_font = lvgl_theme->large_icon_font()->font();
     }
+
     DisplayLockGuard lock(this);
     if (emotion_label_ == nullptr) {
         return false;
@@ -259,28 +295,33 @@ bool OledDisplay::SetEmotion(const char* emotion) {
     if (utf8 != nullptr) {
         lv_obj_set_style_text_font(emotion_label_, emotion_font, 0);
         lv_label_set_text(emotion_label_, utf8);
+        if (height_ == 64) {
+            lv_obj_center(emotion_label_);
+        }
         return true;
     }
 
     lv_obj_set_style_text_font(emotion_label_, lvgl_theme->emoji_font()->font(), 0);
     lv_label_set_text(emotion_label_, NOTO_EMOJI_NEUTRAL);
+    if (height_ == 64) {
+        lv_obj_center(emotion_label_);
+    }
     return false;
 }
 
 void OledDisplay::SetTheme(Theme* theme) {
     DisplayLockGuard lock(this);
-
     auto lvgl_theme = static_cast<LvglTheme*>(theme);
     auto text_font = lvgl_theme->text_font()->font();
-
-    auto screen = lv_screen_active();
-    lv_obj_set_style_text_font(screen, text_font, 0);
+    lv_obj_set_style_text_font(lv_screen_active(), text_font, 0);
 }
 
 void OledDisplay::SetPowerSaveMode(bool on) {
     if (panel_) {
         Settings settings("wifi", false);
-        py/config/type/OledDisplay::SetPowerSaveMode(on);
+        if (settings.GetBool("power_save_display_off", false)) {
+            esp_lcd_panel_disp_on_off(panel_, !on);
+        }
     }
+    LvglDisplay::SetPowerSaveMode(on);
 }
-
