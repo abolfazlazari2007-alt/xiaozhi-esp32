@@ -147,38 +147,10 @@ void OledDisplay::SetChatMessage(const char* role, const char* content) {
     if (chat_message_label_ == nullptr) {
         return;
     }
-
-    std::string content_str = content;
-    std::replace(content_str.begin(), content_str.end(), '\n', ' ');
-
-    lv_anim_delete(chat_message_label_, nullptr);
-    if (content_right_ == nullptr) {
-        lv_label_set_text(chat_message_label_, content_str.c_str());
-    } else {
-        if (content == nullptr || content[0] == '\0') {
-            lv_obj_add_flag(content_right_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_label_set_text(chat_message_label_, content_str.c_str());
-            lv_obj_remove_flag(content_right_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
 }
 
 void OledDisplay::RemoveChatMessage(const char* role, const char* content) {
     DisplayLockGuard lock(this);
-    if (chat_message_label_ == nullptr || content == nullptr) {
-        return;
-    }
-    std::string content_str = content;
-    std::replace(content_str.begin(), content_str.end(), '\n', ' ');
-    if (content_str != lv_label_get_text(chat_message_label_)) {
-        return;
-    }
-    lv_anim_delete(chat_message_label_, nullptr);
-    lv_label_set_text(chat_message_label_, "");
-    if (content_right_ != nullptr) {
-        lv_obj_add_flag(content_right_, LV_OBJ_FLAG_HIDDEN);
-    }
 }
 
 void OledDisplay::SetupUI_128x64() {
@@ -193,102 +165,41 @@ void OledDisplay::SetupUI_128x64() {
     lv_obj_set_style_text_font(screen, text_font, 0);
     lv_obj_set_style_text_color(screen, lv_color_black(), 0);
 
-    /* Container */
+    /* Container - Full Screen */
     container_ = lv_obj_create(screen);
     lv_obj_set_size(container_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_flex_flow(container_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(container_, 0, 0);
     lv_obj_set_style_border_width(container_, 0, 0);
-    lv_obj_set_style_pad_row(container_, 0, 0);
+    lv_obj_set_scrollbar_mode(container_, LV_SCROLLBAR_MODE_OFF);
 
-    /* Layer 1: Top bar - for status icons during boot */
-    top_bar_ = lv_obj_create(container_);
-    lv_obj_set_size(top_bar_, LV_HOR_RES, 16);
-    lv_obj_set_style_radius(top_bar_, 0, 0);
-    lv_obj_set_style_bg_opa(top_bar_, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(top_bar_, 0, 0);
-    lv_obj_set_style_pad_all(top_bar_, 0, 0);
-    lv_obj_set_flex_flow(top_bar_, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(top_bar_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_scrollbar_mode(top_bar_, LV_SCROLLBAR_MODE_OFF);
+    /* Hide Top and Status Bars completely for clean full-screen face */
+    top_bar_ = nullptr;
+    status_bar_ = nullptr;
 
-    network_label_ = lv_label_create(top_bar_);
-    lv_label_set_text(network_label_, "");
-    lv_obj_set_style_text_font(network_label_, icon_font, 0);
-
-    lv_obj_t* right_icons = lv_obj_create(top_bar_);
-    lv_obj_set_size(right_icons, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(right_icons, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(right_icons, 0, 0);
-    lv_obj_set_style_pad_all(right_icons, 0, 0);
-    lv_obj_set_flex_flow(right_icons, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(right_icons, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-
-    mute_label_ = lv_label_create(right_icons);
-    lv_label_set_text(mute_label_, "");
-    lv_obj_set_style_text_font(mute_label_, icon_font, 0);
-
-    battery_label_ = lv_label_create(right_icons);
-    lv_label_set_text(battery_label_, "");
-    lv_obj_set_style_text_font(battery_label_, icon_font, 0);
-
-    /* Layer 2: Status bar - for initial boot labels */
-    status_bar_ = lv_obj_create(screen);
-    lv_obj_set_size(status_bar_, LV_HOR_RES, 16);
-    lv_obj_set_style_radius(status_bar_, 0, 0);
-    lv_obj_set_style_bg_opa(status_bar_, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(status_bar_, 0, 0);
-    lv_obj_set_style_pad_all(status_bar_, 0, 0);
-    lv_obj_set_scrollbar_mode(status_bar_, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_set_style_layout(status_bar_, LV_LAYOUT_NONE, 0);
-    lv_obj_align(status_bar_, LV_ALIGN_TOP_MID, 0, 0);
-
-    notification_label_ = lv_label_create(status_bar_);
-    lv_obj_set_width(notification_label_, LV_HOR_RES);
-    lv_obj_set_style_text_align(notification_label_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(notification_label_, "");
-    lv_obj_align(notification_label_, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_add_flag(notification_label_, LV_OBJ_FLAG_HIDDEN);
-
-    status_label_ = lv_label_create(status_bar_);
-    lv_obj_set_width(status_label_, LV_HOR_RES);
-    lv_label_set_long_mode(status_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(status_label_, Lang::Strings::INITIALIZING);
-    lv_obj_align(status_label_, LV_ALIGN_CENTER, 0, 0);
-
-    /* Content Area - Configured for centered, clean face view */
+    /* Content Area - Full screen centered */
     content_ = lv_obj_create(container_);
+    lv_obj_set_size(content_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_scrollbar_mode(content_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_radius(content_, 0, 0);
     lv_obj_set_style_pad_all(content_, 0, 0);
-    lv_obj_set_width(content_, LV_HOR_RES);
-    lv_obj_set_flex_grow(content_, 1);
-    lv_obj_set_flex_flow(content_, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_flex_main_place(content_, LV_FLEX_ALIGN_CENTER, 0);
+    lv_obj_set_style_border_width(content_, 0, 0);
+    lv_obj_align(content_, LV_ALIGN_CENTER, 0, 0);
 
-    /* Centered Face Container */
+    /* Centered Face Container covering full 128x64 */
     content_left_ = lv_obj_create(content_);
-    lv_obj_set_size(content_left_, LV_HOR_RES, LV_SIZE_CONTENT);
+    lv_obj_set_size(content_left_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_pad_all(content_left_, 0, 0);
     lv_obj_set_style_border_width(content_left_, 0, 0);
+    lv_obj_set_style_bg_opa(content_left_, LV_OPA_TRANSP, 0);
+    lv_obj_align(content_left_, LV_ALIGN_CENTER, 0, 0);
 
     emotion_label_ = lv_label_create(content_left_);
     lv_obj_set_style_text_font(emotion_label_, large_icon_font, 0);
     lv_label_set_text(emotion_label_, MATERIAL_SYMBOLS_ROBOT_2);
     lv_obj_center(emotion_label_);
 
-    /* Disabled Chat Text on 128x64 to keep only the face clear */
-    content_right_ = lv_obj_create(content_);
-    lv_obj_set_size(content_right_, 0, 0);
-    lv_obj_set_style_pad_all(content_right_, 0, 0);
-    lv_obj_set_style_border_width(content_right_, 0, 0);
-    lv_obj_add_flag(content_right_, LV_OBJ_FLAG_HIDDEN);
-
-    chat_message_label_ = lv_label_create(content_right_);
-    lv_label_set_text(chat_message_label_, "");
+    content_right_ = nullptr;
+    chat_message_label_ = nullptr;
 
     low_battery_popup_ = lv_obj_create(screen);
     lv_obj_set_scrollbar_mode(low_battery_popup_, LV_SCROLLBAR_MODE_OFF);
@@ -316,74 +227,20 @@ void OledDisplay::SetupUI_128x32() {
 
     container_ = lv_obj_create(screen);
     lv_obj_set_size(container_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_flex_flow(container_, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_all(container_, 0, 0);
     lv_obj_set_style_border_width(container_, 0, 0);
-    lv_obj_set_style_pad_column(container_, 0, 0);
 
     content_ = lv_obj_create(container_);
     lv_obj_set_size(content_, 32, 32);
     lv_obj_set_style_pad_all(content_, 0, 0);
     lv_obj_set_style_border_width(content_, 0, 0);
     lv_obj_set_style_radius(content_, 0, 0);
+    lv_obj_align(content_, LV_ALIGN_CENTER, 0, 0);
 
     emotion_label_ = lv_label_create(content_);
     lv_obj_set_style_text_font(emotion_label_, large_icon_font, 0);
     lv_label_set_text(emotion_label_, MATERIAL_SYMBOLS_ROBOT_2);
     lv_obj_center(emotion_label_);
-
-    side_bar_ = lv_obj_create(container_);
-    lv_obj_set_size(side_bar_, width_ - 32, 32);
-    lv_obj_set_flex_flow(side_bar_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(side_bar_, 0, 0);
-    lv_obj_set_style_border_width(side_bar_, 0, 0);
-    lv_obj_set_style_radius(side_bar_, 0, 0);
-    lv_obj_set_style_pad_row(side_bar_, 0, 0);
-
-    status_bar_ = lv_obj_create(side_bar_);
-    lv_obj_set_size(status_bar_, width_ - 32, 16);
-    lv_obj_set_style_radius(status_bar_, 0, 0);
-    lv_obj_set_flex_flow(status_bar_, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_all(status_bar_, 0, 0);
-    lv_obj_set_style_border_width(status_bar_, 0, 0);
-    lv_obj_set_style_pad_column(status_bar_, 0, 0);
-
-    status_label_ = lv_label_create(status_bar_);
-    lv_obj_set_flex_grow(status_label_, 1);
-    lv_obj_set_style_pad_left(status_label_, 2, 0);
-    lv_label_set_text(status_label_, Lang::Strings::INITIALIZING);
-
-    notification_label_ = lv_label_create(status_bar_);
-    lv_obj_set_flex_grow(notification_label_, 1);
-    lv_obj_set_style_pad_left(notification_label_, 2, 0);
-    lv_label_set_text(notification_label_, "");
-    lv_obj_add_flag(notification_label_, LV_OBJ_FLAG_HIDDEN);
-
-    mute_label_ = lv_label_create(status_bar_);
-    lv_label_set_text(mute_label_, "");
-    lv_obj_set_style_text_font(mute_label_, icon_font, 0);
-
-    network_label_ = lv_label_create(status_bar_);
-    lv_label_set_text(network_label_, "");
-    lv_obj_set_style_text_font(network_label_, icon_font, 0);
-
-    battery_label_ = lv_label_create(status_bar_);
-    lv_label_set_text(battery_label_, "");
-    lv_obj_set_style_text_font(battery_label_, icon_font, 0);
-
-    chat_message_label_ = lv_label_create(side_bar_);
-    lv_obj_set_size(chat_message_label_, width_ - 32, LV_SIZE_CONTENT);
-    lv_obj_set_style_pad_left(chat_message_label_, 2, 0);
-    lv_label_set_long_mode(chat_message_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_label_set_text(chat_message_label_, "");
-
-    static lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_delay(&a, 1000);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_obj_set_style_anim(chat_message_label_, &a, LV_PART_MAIN);
-    lv_obj_set_style_anim_duration(chat_message_label_, lv_anim_speed_clamped(60, 300, 60000),
-                                   LV_PART_MAIN);
 }
 
 bool OledDisplay::SetEmotion(const char* emotion) {
@@ -397,14 +254,6 @@ bool OledDisplay::SetEmotion(const char* emotion) {
     DisplayLockGuard lock(this);
     if (emotion_label_ == nullptr) {
         return false;
-    }
-
-    // Hide top bars when in active chat/emotion display for full-screen expression
-    if (top_bar_ != nullptr) {
-        lv_obj_add_flag(top_bar_, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (status_bar_ != nullptr) {
-        lv_obj_add_flag(status_bar_, LV_OBJ_FLAG_HIDDEN);
     }
 
     if (utf8 != nullptr) {
@@ -431,9 +280,7 @@ void OledDisplay::SetTheme(Theme* theme) {
 void OledDisplay::SetPowerSaveMode(bool on) {
     if (panel_) {
         Settings settings("wifi", false);
-        if (settings.GetBool("power_save_display_off", false)) {
-            esp_lcd_panel_disp_on_off(panel_, !on);
-        }
+        py/config/type/OledDisplay::SetPowerSaveMode(on);
     }
-    LvglDisplay::SetPowerSaveMode(on);
 }
+
